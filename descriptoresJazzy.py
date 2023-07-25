@@ -4,6 +4,7 @@ from rdkit import Chem
 from rdkit.Chem import Crippen
 from jazzy.api import deltag_from_smiles
 from jazzy.api import molecular_vector_from_smiles
+import warnings
 
 nombresColumnas = {"sdc":"CHds","sdx":"XHds","sa":"HBAs"}
 nombresColumnasEnergias = {"dga":"HydA","dgp":"HydP","dgtot":"Hyd"}
@@ -21,6 +22,7 @@ def addSmilesToDataByCas(data):
     return data
 
 def calcularDescriptoresJazzy(smiles):
+    warnings.filterwarnings("ignore")
     deltag_sol_oct0 = []
     deltag_sol_oct = []
     v_dict = {}

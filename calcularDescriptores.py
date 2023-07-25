@@ -4,9 +4,14 @@ from rpy2.robjects import pandas2ri
 import rpy2.robjects as ro
 from descriptoresRDKit import calcularDescriptoresRDKit
 from descriptoresJazzy import calcularDescriptoresJazzy
-
+from openbabel import pybel
+import warnings
 
 pandas2ri.activate()
+
+from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
+import logging
+rpy2_logger.setLevel(logging.ERROR)
 
 
 def calcularDescriptoresCDK(smiles):
@@ -16,6 +21,7 @@ def calcularDescriptoresCDK(smiles):
     getDescNames = rcdk.get_desc_names
 
     descNames = base.unique(base.unlist(base.sapply(descCategories,getDescNames)))
+    descNames = [name for name in descNames if name != "org.openscience.cdk.qsar.descriptors.molecular.LongestAliphaticChainDescriptor"]
 
     mols = rcdk.parse_smiles(ro.StrVector(smiles))
     descriptorsCDK = rcdk.eval_desc(mols,descNames)
@@ -29,13 +35,14 @@ def calcularDescriptoresCDK(smiles):
 
 
 def calcularDescriptoresObabel(smiles):
-    rcpi = rpackages.importr('Rcpi')
     descriptorsObabel = pandas.DataFrame()
+    i = 0
     for smile in smiles:
-        x = rcpi.extractDrugDescOB(smile, type = 'smile')
-        y = ro.conversion.rpy2py(x)
-        descriptorsObabel = pandas.concat([descriptorsObabel,y],ignore_index=True)
-    descriptorsObabel.drop(columns=["cansmi","cansmiNS","formula","title","InChI"],inplace=True)
+        mol = pybel.readstring("smi",smile)
+        desc = mol.calcdesc()
+        descriptorsObabel = pandas.concat([descriptorsObabel,pandas.DataFrame(desc,index=[i])])
+        i+=1
+    descriptorsObabel.drop(columns=["cansmi","cansmiNS","formula","title","InChI","InChIKey","smarts","s","L5"],inplace=True)
     return descriptorsObabel
 
 def calcularDescriptores(smiles):
