@@ -104,25 +104,43 @@ def calcularDescriptores(molecula):
 
     return descriptores
 
+def calcularDescriptoresNuevo(molecula):
+    descriptores = Chem.Descriptors.CalcMolDescriptors(molecula)
+    descriptores["NumAmideBonds"] = rdMolDescriptors.CalcNumAmideBonds(molecula)
+    descriptores["NumSpiroAtoms"] = rdMolDescriptors.CalcNumSpiroAtoms(molecula)
+    descriptores["NumBridgeheadAtoms"] = rdMolDescriptors.CalcNumBridgeheadAtoms(molecula)
+    PEOE_VSA = rdMolDescriptors.PEOE_VSA_(molecula)
+    for i in range(1,15):
+        descriptores["PEOE_VSA_"+str(i)] = PEOE_VSA[i-1]
+
+    SMR_VSA = rdMolDescriptors.SMR_VSA_(molecula)
+    for i in range(1,11):
+        descriptores["SMR_VSA_"+str(i)] = SMR_VSA[i-1]
+
+    SlogP_VSA = rdMolDescriptors.SlogP_VSA_(molecula)
+    for i in range(1,11):
+        descriptores["SlogP_VSA_"+str(i)] = SlogP_VSA[i-1]
+    
+    
+    MQNs = rdMolDescriptors.MQNs_(molecula)
+    for i in range(1,43):
+        descriptores["MQNs_"+str(i)] = MQNs[i-1]
+    return descriptores
+    
+
 
 def calcularDescriptoresRDKit(smiles):
     descriptoresRDKit = {}
     for smile in smiles:
-        molecula = Chem.MolFromSmiles(smile)
-        descriptores = calcularDescriptores(molecula)
-        for descriptor in descriptores:
-            if descriptor in descriptoresRDKit:
-                descriptoresRDKit[descriptor].append(descriptores[descriptor])
-            else:
-                descriptoresRDKit[descriptor] = [descriptores[descriptor]]
+        try:
+            molecula = Chem.MolFromSmiles(smile)
+            descriptores = calcularDescriptoresNuevo(molecula)
+            for descriptor in descriptores:
+                if (descriptor+"_rdkit") in descriptoresRDKit:
+                    descriptoresRDKit[descriptor+"_rdkit"].append(descriptores[descriptor])
+                else:
+                    descriptoresRDKit[descriptor+"_rdkit"] = [descriptores[descriptor]]
+        except:
+            for descriptor in descriptoresRDKit:
+                descriptoresRDKit[descriptor+"_rdkit"].append("")
     return pd.DataFrame(descriptoresRDKit)
-
-
-if __name__ == "__main__":
-    datos = pd.read_csv("contaminants_descriptors.csv")
-    smiles = datos["smiles"]
-    descriptoresRDKit = calcularDescriptoresRDKit(smiles)
-    for descriptor in descriptoresRDKit:
-        datos[descriptor] = descriptoresRDKit[descriptor]
-
-    datos.to_csv("contaminants_descriptors.csv")

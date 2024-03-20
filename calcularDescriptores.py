@@ -1,11 +1,11 @@
-import pandas
+import pandas as pd
 import rpy2.robjects.packages as rpackages
 from rpy2.robjects import pandas2ri
 import rpy2.robjects as ro
 from descriptoresRDKit import calcularDescriptoresRDKit
 from descriptoresJazzy import calcularDescriptoresJazzy
 from openbabel import pybel
-import warnings
+from rdkit.Chem import CanonSmiles
 
 pandas2ri.activate()
 
@@ -22,6 +22,7 @@ def calcularDescriptoresCDK(smiles):
 
     descNames = base.unique(base.unlist(base.sapply(descCategories,getDescNames)))
     descNames = [name for name in descNames if name != "org.openscience.cdk.qsar.descriptors.molecular.LongestAliphaticChainDescriptor"]
+    descNames = ro.StrVector(descNames)
 
     mols = rcdk.parse_smiles(ro.StrVector(smiles))
     descriptorsCDK = rcdk.eval_desc(mols,descNames)
@@ -35,22 +36,27 @@ def calcularDescriptoresCDK(smiles):
 
 
 def calcularDescriptoresObabel(smiles):
-    descriptorsObabel = pandas.DataFrame()
+    descriptorsObabel = pd.DataFrame()
     i = 0
     for smile in smiles:
         mol = pybel.readstring("smi",smile)
         desc = mol.calcdesc()
-        descriptorsObabel = pandas.concat([descriptorsObabel,pandas.DataFrame(desc,index=[i])])
+        descriptorsObabel = pd.concat([descriptorsObabel,pd.DataFrame(desc,index=[i])])
         i+=1
-    descriptorsObabel.drop(columns=["cansmi","cansmiNS","formula","title","InChI","InChIKey","smarts","s","L5"],inplace=True)
+    descriptorsObabel.drop(columns=["cansmi","cansmiNS","formula","title","InChI","InChIKey","smarts"],inplace=True)
+    columnas = [col + "_Obabel" for col in descriptorsObabel.columns]
+    descriptorsObabel.columns = columnas
     return descriptorsObabel
 
 def calcularDescriptores(smiles):
-    descriptorsCDK = calcularDescriptoresCDK(smiles)
-    descriptorsObabel = calcularDescriptoresObabel(smiles)
-    descriptoresRDKit = calcularDescriptoresRDKit(smiles)
-    descriptoresJazzy = calcularDescriptoresJazzy(smiles)
-    descriptors = pandas.concat([descriptoresJazzy,descriptorsCDK,descriptoresRDKit,descriptorsObabel],axis=1)
+    smilesCanon = []
+    i=0
+    for smile in smiles:
+        smilesCanon.append(CanonSmiles(smile))
+    descriptorsCDK = calcularDescriptoresCDK(smilesCanon)
+    descriptorsObabel = calcularDescriptoresObabel(smilesCanon)
+    descriptoresRDKit = calcularDescriptoresRDKit(smilesCanon)
+    descriptoresJazzy = calcularDescriptoresJazzy(smilesCanon)
+    descriptors = pd.concat([descriptoresJazzy,descriptorsCDK,descriptoresRDKit,descriptorsObabel],axis=1)
+    descriptors.insert(0,"smiles",smilesCanon)
     return descriptors
-
-

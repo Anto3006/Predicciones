@@ -5,27 +5,28 @@ import os
 import sys
 import warnings
 
-def cargarModelo(nombreModelo):
-    modelo = pickle.load(open("Modelos//"+nombreModelo, 'rb'))
+def cargarModelo(nombre_modelo):
+    modelo = pickle.load(open("Modelos//"+nombre_modelo, 'rb'))
     return modelo
 
-def predecir(nombreModelo,descriptores):
-    modelo = cargarModelo(nombreModelo)
-    descriptoresModelo = modelo.feature_names_in_
-    descriptores = descriptores[descriptoresModelo]
-    descriptores.columns = descriptores.columns.astype(str)
-    descriptores = descriptores.loc[:, ~descriptores.columns.duplicated()]
-    predicciones = modelo.predict(descriptores)
-    return predicciones
+def predecir(tipo,descriptores):
+    nombre_modelos = os.listdir(f"Modelos//{tipo}")
+    prediccion = 0
+    for nombre_modelo in nombre_modelos:
+        modelo = cargarModelo(nombre_modelo)
+        descriptores_modelo = modelo.feature_names_in_
+        descriptores = descriptores[descriptores_modelo]
+        descriptores.columns = descriptores.columns.astype(str)
+        prediccion_modelo = modelo.predict(descriptores)
+        prediccion += prediccion_modelo
+    return prediccion/len(nombre_modelos)
 
 def realizarPredicciones(smiles):
-    nombreModelos = os.listdir("Modelos")
-    predicciones = {}
     descriptores = calcularDescriptores(smiles)
-    for nombreModelo in nombreModelos:
-        p = predecir(nombreModelo,descriptores)
-        predicciones[nombreModelo] = p
-    return pd.DataFrame(predicciones,index=smiles)
+    prediccion_logKoa = predecir("logKoa",descriptores)
+    prediccion_logP = predecir("logP",descriptores)
+    predicciones = pd.DataFrame(data=[smiles,prediccion_logKoa,prediccion_logP],columns=["smiles","logKoa","logP"])
+    return predicciones
 
 
 if __name__ == "__main__":
