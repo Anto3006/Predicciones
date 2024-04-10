@@ -5,6 +5,13 @@ import os
 import sys
 import warnings
 
+def mean(list_values):
+  total = sum(list_values)
+  if len(list_values) > 0:
+    return total/len(list_values)
+  else:
+    return np.nan
+
 def load_model(model_name):
     model = pickle.load(open("Models//"+model_name, 'rb'))
     return model
