@@ -2,10 +2,12 @@ import pandas as pd
 import rpy2.robjects.packages as rpackages
 from rpy2.robjects import pandas2ri
 import rpy2.robjects as ro
-from descriptoresRDKit import calcularDescriptoresRDKit
-from descriptoresJazzy import calcularDescriptoresJazzy
+from descriptorsRDKit import calculateDescriptorsRDKit
+from descriptorsJazzy import calculateDescriptorsJazzy
 from openbabel import pybel
 from rdkit.Chem import CanonSmiles
+from parameterReader import ParameterReader
+from descriptorsConjugated import calculateConjugatedDescriptors
 
 pandas2ri.activate()
 
@@ -14,7 +16,7 @@ import logging
 rpy2_logger.setLevel(logging.ERROR)
 
 
-def calcularDescriptoresCDK(smiles):
+def calculateDescriptorsCDK(smiles):
     rcdk = rpackages.importr("rcdk")
     base = rpackages.importr("base")
     descCategories = rcdk.get_desc_categories()
@@ -35,7 +37,7 @@ def calcularDescriptoresCDK(smiles):
 
 
 
-def calcularDescriptoresObabel(smiles):
+def calculateDescriptorsObabel(smiles):
     descriptorsObabel = pd.DataFrame()
     i = 0
     for smile in smiles:
@@ -44,19 +46,39 @@ def calcularDescriptoresObabel(smiles):
         descriptorsObabel = pd.concat([descriptorsObabel,pd.DataFrame(desc,index=[i])])
         i+=1
     descriptorsObabel.drop(columns=["cansmi","cansmiNS","formula","title","InChI","InChIKey","smarts"],inplace=True)
-    columnas = [col + "_Obabel" for col in descriptorsObabel.columns]
-    descriptorsObabel.columns = columnas
+    columns = [col + "_Obabel" for col in descriptorsObabel.columns]
+    descriptorsObabel.columns = columns
     return descriptorsObabel
 
-def calcularDescriptores(smiles):
+def calculateDescriptors(smiles):
     smilesCanon = []
     i=0
     for smile in smiles:
         smilesCanon.append(CanonSmiles(smile))
-    descriptorsCDK = calcularDescriptoresCDK(smilesCanon)
-    descriptorsObabel = calcularDescriptoresObabel(smilesCanon)
-    descriptoresRDKit = calcularDescriptoresRDKit(smilesCanon)
-    descriptoresJazzy = calcularDescriptoresJazzy(smilesCanon)
-    descriptors = pd.concat([descriptoresJazzy,descriptorsCDK,descriptoresRDKit,descriptorsObabel],axis=1)
+    descriptorsCDK = calculateDescriptorsCDK(smilesCanon)
+    descriptorsObabel = calculateDescriptorsObabel(smilesCanon)
+    descriptorsRDKit = calculateDescriptorsRDKit(smilesCanon)
+    descriptorsJazzy = calculateDescriptorsJazzy(smilesCanon)
+    descriptorsConj = calculateConjugatedDescriptors(smilesCanon)
+    descriptors = pd.concat([descriptorsJazzy,descriptorsCDK,descriptorsRDKit,descriptorsObabel,descriptorsConj],axis=1)
     descriptors.insert(0,"smiles",smilesCanon)
     return descriptors
+
+def createDataset(data,fileName):
+    data.sort_index(inplace=True)
+    smiles = data["smiles"].to_numpy()
+    objetivo = data[data.columns[1]].to_numpy()
+    dataset = calculateDescriptors(smiles)
+    dataset.insert(1,data.columns[1],objetivo)
+    for index in range(2,len(data.columns)):
+        dataset.insert(2,data.columns[index],data[data.columns[index]].to_numpy())
+    dataset.to_csv("desc_"+fileName,index=False)
+
+def main():
+    reader = ParameterReader()
+    parameters = reader.readParameters()
+    fileName = parameters["data"]
+    createDataset(pd.read_csv(fileName),fileName)
+
+if __name__ == "__main__":
+    main()
