@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import sys
 import warnings
+import numpy as np
 
 def mean(list_values):
   total = sum(list_values)
